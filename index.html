@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>THE BOSS - ניהול הון</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #111827;
+            --accent: #facc15;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --text: #f8fafc;
+            --locked: #6366f1;
+        }
+
+        body {
+            margin: 0; font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg); color: var(--text);
+            display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+        }
+
+        #login-screen {
+            position: fixed; inset: 0; background: var(--bg); z-index: 1000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
+        }
+
+        .top-status {
+            background: var(--card); padding: 15px; text-align: center;
+            border-bottom: 2px solid var(--accent); box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .balance-label { font-size: 14px; color: #9ca3af; }
+        .balance { font-size: 32px; font-weight: 800; margin: 5px 0; }
+        
+        .content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 100px; }
+        .page { display: none; }
+        .page.active { display: block; animation: slideIn 0.2s ease-out; }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card { background: var(--card); padding: 15px; border-radius: 15px; margin-bottom: 15px; border: 1px solid #1e293b; }
+        
+        input, select, button {
+            width: 100%; padding: 12px; margin: 8px 0;
+            border-radius: 10px; border: none; font-size: 16px; box-sizing: border-box;
+        }
+
+        input { background: #1f2937; color: white; border: 1px solid #334155; }
+        button { background: var(--accent); color: black; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button:active { transform: scale(0.98); }
+        .btn-secondary { background: #334155; color: white; }
+        .btn-lock { background: var(--locked); color: white; }
+        
+        .nav-tabs {
+            position: fixed; bottom: 0; width: 100%;
+            background: #1e293b; display: flex;
+            height: 70px; border-top: 1px solid var(--accent);
+        }
+
+        .nav-tab {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            font-size: 10px; color: #9ca3af; cursor: pointer;
+        }
+
+        .nav-tab.active { color: var(--accent); font-weight: bold; }
+
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #1e293b; }
+        .alert-box { background: var(--danger); color: white; padding: 15px; border-radius: 12px; margin: 15px; display: none; }
+        
+        .currency-card { display: flex; justify-content: space-around; text-align: center; }
+        .currency-item span { display: block; font-weight: bold; font-size: 18px; color: var(--accent); }
+
+        /* מחשבון */
+        .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .calc-btn { background: #1e293b; color: white; padding: 15px; font-size: 18px; margin: 0; }
+        #calc-display { background: #0f172a; text-align: left; padding: 15px; font-size: 24px; margin-bottom: 10px; border-radius: 10px; min-height: 30px; }
+    </style>
+</head>
+<body>
+
+<div id="login-screen">
+    <h1 style="color: var(--accent); letter-spacing: 2px;">THE BOSS</h1>
+    <input type="password" id="pin-input" inputmode="numeric" placeholder="קוד גישה" style="text-align: center;">
+    <button onclick="checkPin()">כניסה למערכת</button>
+</div>
+
+<div id="breach-alert" class="alert-box">
+    <div style="display:flex; justify-content: space-between; align-items: center;">
+        <span>⚠️ <b>התראת אבטחה:</b> כניסה למצב מזויף ב-<span id="breach-time"></span></span>
+        <button onclick="dismissBreach()" style="width: auto; margin: 0; padding: 5px 10px; background: white; color: red;">מחק התראה</button>
+    </div>
+</div>
+
+<div class="top-status">
+    <div class="balance-label">יתרה פנויה לשימוש</div>
+    <div id="free-balance" class="balance" style="color: var(--success)">₪0</div>
+    <div style="display: flex; justify-content: center; gap: 15px; font-size: 12px; color: #64748b;">
+        <span>עתידי: <b id="pending-balance" style="color:var(--accent)">₪0</b></span>
+        <span>נעול: <b id="locked-balance" style="color:var(--locked)">₪0</b></span>
+    </div>
+</div>
+
+<div class="content">
+    <div id="home" class="page active">
+        <div class="card">
+            <h3>פעולה מהירה</h3>
+            <input type="number" id="main-amount" placeholder="סכום בשקלים">
+            <select id="main-type">
+                <option value="income">הכנסה (+)</option>
+                <option value="expense">הוצאה (-)</option>
+            </select>
+            <button onclick="addTransaction()">עדכן יתרה פנויה</button>
+        </div>
+    </div>
+
+    <div id="savings" class="page">
+        <div class="card">
+            <h3>נעילת כסף למטרה</h3>
+            <input type="text" id="lock-reason" placeholder="מטרה (לדוגמה: שיעור נהיגה)">
+            <input type="number" id="lock-amount" placeholder="סכום לנעילה">
+            <button class="btn-lock" onclick="lockMoney()">נעל כסף בצד</button>
+        </div>
+        <div class="card">
+            <h3>כסף נעול</h3>
+            <div id="locked-list"></div>
+        </div>
+    </div>
+
+    <div id="work" class="page">
+        <div class="card">
+            <h3>מחשבון שכר</h3>
+            <div style="display:flex; gap:5px;">
+                <input type="time" id="work-start">
+                <input type="time" id="work-end">
+            </div>
+            <input type="number" id="hourly-rate" placeholder="שכר לשעה">
+            <button onclick="calculateWork()">חשב שכר משמרת</button>
+            <div id="work-result" style="text-align:center; margin:10px; font-weight:bold;"></div>
+            <div id="save-to-work-div" style="display:none">
+                <select id="work-select-target"></select>
+                <button class="btn-secondary" onclick="addWageToWork()">אוסף לעבודה שנבחרה</button>
+            </div>
+        </div>
+        <div class="card">
+            <h3>פירוט שכר עתידי</h3>
+            <div id="pending-list-items"></div>
+            <button class="btn-secondary" style="margin-top:10px" onclick="addNewWorkPlace()">+ הוסף מקום עבודה</button>
+        </div>
+    </div>
+
+    <div id="calculator" class="page">
+        <div class="card">
+            <div id="calc-display">0</div>
+            <div class="calc-grid">
+                <button class="calc-btn" onclick="calcClear()">C</button>
+                <button class="calc-btn" onclick="calcInput('/')">/</button>
+                <button class="calc-btn" onclick="calcInput('*')">*</button>
+                <button class="calc-btn" onclick="calcBackspace()">DEL</button>
+                <button class="calc-btn" onclick="calcInput('7')">7</button>
+                <button class="calc-btn" onclick="calcInput('8')">8</button>
+                <button class="calc-btn" onclick="calcInput('9')">9</button>
+                <button class="calc-btn btn-lock" onclick="calcInput('-')">-</button>
+                <button class="calc-btn" onclick="calcInput('4')">4</button>
+                <button class="calc-btn" onclick="calcInput('5')">5</button>
+                <button class="calc-btn" onclick="calcInput('6')">6</button>
+                <button class="calc-btn btn-lock" onclick="calcInput('+')">+</button>
+                <button class="calc-btn" onclick="calcInput('1')">1</button>
+                <button class="calc-btn" onclick="calcInput('2')">2</button>
+                <button class="calc-btn" onclick="calcInput('3')">3</button>
+                <button class="calc-btn btn-lock" style="grid-row: span 2;" onclick="calcEqual()">=</button>
+                <button class="calc-btn" style="grid-column: span 2;" onclick="calcInput('0')">0</button>
+                <button class="calc-btn" onclick="calcInput('.')">.</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="currency" class="page">
+        <div class="card currency-card">
+            <div class="currency-item">דולר 🇺🇸 <span id="usd-rate">מעדכן...</span></div>
+            <div class="currency-item">יורו 🇪🇺 <span id="eur-rate">מעדכן...</span></div>
+        </div>
+        <div class="card">
+            <h3>ממיר מטבעות בזמן אמת</h3>
+            <input type="number" id="ils-input" placeholder="הכנס סכום בשקלים" oninput="convertCurrency()">
+            <div style="margin-top:15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: center;">
+                <div style="background: #1e293b; padding: 10px; border-radius: 8px;">
+                    <div style="font-size: 12px; color: #9ca3af;">סכום בדולר</div>
+                    <span id="res-usd" style="color: var(--accent); font-weight: bold; font-size: 18px;">$0</span>
+                </div>
+                <div style="background: #1e293b; padding: 10px; border-radius: 8px;">
+                    <div style="font-size: 12px; color: #9ca3af;">סכום ביורו</div>
+                    <span id="res-eur" style="color: var(--accent); font-weight: bold; font-size: 18px;">€0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<nav class="nav-tabs">
+    <div class="nav-tab active" onclick="showPage('home', this)">🏠<br>ראשי</div>
+    <div class="nav-tab" onclick="showPage('savings', this)">🔒<br>נעול</div>
+    <div class="nav-tab" onclick="showPage('work', this)">🕒<br>עבודה</div>
+    <div class="nav-tab" onclick="showPage('calculator', this)">🧮<br>חשב</div>
+    <div class="nav-tab" onclick="showPage('currency', this)">💹<br>שער</div>
+</nav>
+
+<script>
+    const REAL_PIN = "2157";
+    const FAKE_PIN = "0507";
+    let isFake = false;
+    let rates = { USD: 3.65, EUR: 3.95 };
+
+    let db = {
+        total: parseFloat(localStorage.getItem('total')) || 0,
+        lockedItems: JSON.parse(localStorage.getItem('lockedItems')) || [],
+        workPlaces: JSON.parse(localStorage.getItem('workPlaces')) || [
+            { name: "רוח שתות", amount: 0 },
+            { name: "פיצה המייסדים", amount: 0 }
+        ]
+    };
+
+    async function fetchRates() {
+        try {
+            const res = await fetch('https://open.er-api.com/v6/latest/ILS');
+            const data = await res.json();
+            if (data && data.rates) {
+                rates.USD = 1 / data.rates.USD;
+                rates.EUR = 1 / data.rates.EUR;
+                document.getElementById('usd-rate').innerText = rates.USD.toFixed(2);
+                document.getElementById('eur-rate').innerText = rates.EUR.toFixed(2);
+            }
+        } catch(e) { 
+            console.log("Error fetching rates, using defaults");
+            document.getElementById('usd-rate').innerText = rates.USD.toFixed(2);
+            document.getElementById('eur-rate').innerText = rates.EUR.toFixed(2);
+        }
+    }
+
+    function checkPin() {
+        const val = document.getElementById('pin-input').value;
+        if(val === REAL_PIN) {
+            document.getElementById('login-screen').style.display='none';
+            const breach = localStorage.getItem('breach');
+            if(breach) {
+                document.getElementById('breach-alert').style.display='block';
+                document.getElementById('breach-time').innerText = breach;
+            }
+            updateUI();
+            fetchRates();
+        } else if(val === FAKE_PIN) {
+            isFake = true;
+            localStorage.setItem('breach', new Date().toLocaleString());
+            document.getElementById('login-screen').style.display='none';
+            document.getElementById('free-balance').innerText = "₪120";
+        }
+        document.getElementById('pin-input').value = '';
+    }
+
+    function dismissBreach() {
+        localStorage.removeItem('breach');
+        document.getElementById('breach-alert').style.display = 'none';
+    }
+
+    function showPage(id, el) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+        if(el) el.classList.add('active');
+        if(id === 'work') updateWorkSelect();
+    }
+
+    function lockMoney() {
+        const reason = document.getElementById('lock-reason').value;
+        const amount = parseFloat(document.getElementById('lock-amount').value);
+        if(!reason || !amount || amount > db.total) {
+            alert("סכום לא תקין או שאין מספיק יתרה פנויה");
+            return;
+        }
+        db.total -= amount;
+        db.lockedItems.push({ reason, amount, id: Date.now() });
+        document.getElementById('lock-reason').value = '';
+        document.getElementById('lock-amount').value = '';
+        updateUI();
+    }
+
+    function unlockMoney(id) {
+        const item = db.lockedItems.find(i => i.id === id);
+        db.total += item.amount;
+        db.lockedItems = db.lockedItems.filter(i => i.id !== id);
+        updateUI();
+    }
+
+    function updateUI() {
+        if(isFake) return;
+        const pendingTotal = db.workPlaces.reduce((s, w) => s + w.amount, 0);
+        const lockedTotal = db.lockedItems.reduce((s, i) => s + i.amount, 0);
+        
+        document.getElementById('free-balance').innerText = "₪" + db.total.toLocaleString();
+        document.getElementById('pending-balance').innerText = "₪" + Math.round(pendingTotal).toLocaleString();
+        document.getElementById('locked-balance').innerText = "₪" + lockedTotal.toLocaleString();
+        
+        // רשימת נעולים
+        document.getElementById('locked-list').innerHTML = db.lockedItems.map(i => `
+            <div class="list-item">
+                <div><b>${i.reason}</b><br><small style="color:var(--locked)">₪${i.amount}</small></div>
+                <button onclick="unlockMoney(${i.id})" style="width:auto; padding:5px 10px; font-size:12px;">שחרר</button>
+            </div>
+        `).join('') || '<div style="text-align:center; color:#64748b;">אין כסף נעול</div>';
+
+        // רשימת עבודות
+        document.getElementById('pending-list-items').innerHTML = db.workPlaces.map(w => `
+            <div class="list-item">
+                <span>${w.name}</span>
+                <span style="color:var(--success); font-weight:bold;">₪${w.amount.toFixed(0)}</span>
+            </div>
+        `).join('');
+
+        localStorage.setItem('total', db.total);
+        localStorage.setItem('workPlaces', JSON.stringify(db.workPlaces));
+        localStorage.setItem('lockedItems', JSON.stringify(db.lockedItems));
+    }
+
+    function addTransaction() {
+        const amt = parseFloat(document.getElementById('main-amount').value);
+        if(!amt) return;
+        db.total += (document.getElementById('main-type').value === 'income' ? amt : -amt);
+        document.getElementById('main-amount').value = '';
+        updateUI();
+    }
+
+    // פונקציות עבודה ומחשבון (ללא שינוי מהקוד המקורי, רק תיקוני באגים קלים)
+    let lastCalc = 0;
+    function calculateWork() {
+        const start = document.getElementById('work-start').value;
+        const end = document.getElementById('work-end').value;
+        const rate = parseFloat(document.getElementById('hourly-rate').value);
+        if(!start || !end || !rate) return;
+        let s = new Date("2000/01/01 " + start);
+        let e = new Date("2000/01/01 " + end);
+        if(e < s) e.setDate(e.getDate() + 1);
+        lastCalc = ((e - s) / 3600000) * rate;
+        document.getElementById('work-result').innerText = "₪" + lastCalc.toFixed(2);
+        document.getElementById('save-to-work-div').style.display = 'block';
+        updateWorkSelect();
+    }
+    function updateWorkSelect() {
+        const sel = document.getElementById('work-select-target');
+        if(sel) sel.innerHTML = db.workPlaces.map((w,i) => `<option value="${i}">${w.name}</option>`).join('');
+    }
+    function addWageToWork() {
+        const idx = document.getElementById('work-select-target').value;
+        db.workPlaces[idx].amount += lastCalc;
+        document.getElementById('save-to-work-div').style.display = 'none';
+        document.getElementById('work-result').innerText = "נשמר בהצלחה! ✅";
+        updateUI();
+    }
+    function addNewWorkPlace() {
+        const name = prompt("שם מקום העבודה החדש:");
+        if(name) { db.workPlaces.push({name: name, amount: 0}); updateUI(); }
+    }
+    let calcVal = "";
+    function calcInput(v) { calcVal += v; document.getElementById('calc-display').innerText = calcVal; }
+    function calcClear() { calcVal = ""; document.getElementById('calc-display').innerText = "0"; }
+    function calcBackspace() { calcVal = calcVal.slice(0,-1); document.getElementById('calc-display').innerText = calcVal || "0"; }
+    function calcEqual() { try { calcVal = eval(calcVal).toString(); document.getElementById('calc-display').innerText = calcVal; } catch(e) { calcClear(); } }
+    function convertCurrency() {
+        const ils = parseFloat(document.getElementById('ils-input').value) || 0;
+        document.getElementById('res-usd').innerText = "$" + (ils / rates.USD).toFixed(2);
+        document.getElementById('res-eur').innerText = "€" + (ils / rates.EUR).toFixed(2);
+    }
+</script>
+</body>
+</html>
