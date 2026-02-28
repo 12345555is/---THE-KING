@@ -423,4 +423,17 @@
     function updateWorkSelect() { document.getElementById('work-select-target').innerHTML = db.workPlaces.map((w,i) => `<option value="${i}">${w.name}</option>`).join(''); }
     function addTransaction() { const amt = parseFloat(document.getElementById('main-amount').value); if(!amt) return; db.total += (document.getElementById('main-type').value === 'income' ? amt : -amt); document.getElementById('main-amount').value = ''; updateUI(); }
     function lockMoney() { const r = document.getElementById('lock-reason').value, a = parseFloat(document.getElementById('lock-amount').value); if(!r || !a || a > db.total) return; db.total -= a; db.lockedItems.push({ reason: r, amount: a, id: Date.now() }); updateUI(); }
-    function unlockMoney(i
+    function unlockMoney(id) { const i = db.lockedItems.find(x => x.id === id); db.total += i.amount; db.lockedItems = db.lockedItems.filter(x => x.id !== id); updateUI(); }
+    function deleteWorkPlace(i) { if(confirm("למחוק?")) { db.workPlaces.splice(i, 1); updateUI(); } }
+    function addNewWorkPlace() { const n = prompt("שם מקום עבודה:"); if(n) { db.workPlaces.push({ name: n, amount: 0 }); updateUI(); } }
+    async function fetchRates() { try { const res = await fetch('https://open.er-api.com/v6/latest/ILS'); const data = await res.json(); rates.USD = 1/data.rates.USD; rates.EUR = 1/data.rates.EUR; document.getElementById('usd-rate').innerText = rates.USD.toFixed(2); document.getElementById('eur-rate').innerText = rates.EUR.toFixed(2); } catch(e) {} }
+    function convertCurrency() { const ils = parseFloat(document.getElementById('ils-input').value) || 0; document.getElementById('res-usd').innerText = "$" + (ils/rates.USD).toFixed(2) + " | €" + (ils/rates.EUR).toFixed(2); }
+    
+    let calcVal = "";
+    function calcInput(v) { calcVal += v; document.getElementById('calc-display').innerText = calcVal; }
+    function calcClear() { calcVal = ""; document.getElementById('calc-display').innerText = "0"; }
+    function calcBackspace() { calcVal = calcVal.slice(0, -1); document.getElementById('calc-display').innerText = calcVal || "0"; }
+    function calcEqual() { try { calcVal = eval(calcVal).toString(); document.getElementById('calc-display').innerText = calcVal; } catch(e) { calcClear(); } }
+</script>
+</body>
+</html>
