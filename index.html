@@ -89,12 +89,14 @@
         .calc-btn { background: #1e293b; color: white; padding: 15px; font-size: 18px; margin: 0; }
         #calc-display { background: #0f172a; text-align: left; padding: 15px; font-size: 24px; margin-bottom: 10px; border-radius: 10px; min-height: 35px; color: var(--accent); }
 
+        /* עיצוב הדוח להורדה */
         #report-capture {
             background: white; color: black; padding: 30px; border-radius: 5px;
-            width: 350px; margin: 0 auto; position: absolute; left: -9999px;
+            width: 400px; position: fixed; left: -9999px; top: 0;
         }
         .report-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        .report-table th, .report-table td { border-bottom: 1px solid #eee; padding: 10px; text-align: right; }
+        .report-table th, .report-table td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        .report-table th { background: #facc15; }
         .edit-icon { color: var(--accent); cursor: pointer; padding: 5px; font-size: 18px; }
     </style>
 </head>
@@ -225,19 +227,19 @@
 </nav>
 
 <div id="report-capture" dir="rtl">
-    <h2 style="text-align:center; border-bottom: 2px solid #facc15; padding-bottom: 10px;">סיכום שעות - רוח שתות</h2>
+    <h2 style="text-align:center;">סיכום שעות - THE BOSS</h2>
     <table class="report-table">
         <thead>
             <tr>
                 <th>תאריך</th>
                 <th>שעות</th>
-                <th>סה"כ</th>
+                <th>סה"כ שעות</th>
             </tr>
         </thead>
         <tbody id="report-table-body"></tbody>
     </table>
-    <div style="margin-top: 20px; font-weight: bold; text-align: left;">
-        סה"כ שעות מצטבר: <span id="report-total-hours">0</span>
+    <div style="margin-top:20px; text-align:left; font-size:18px;">
+        סה"כ שעות לחודש זה: <b id="report-total-hours">0</b>
     </div>
 </div>
 
@@ -256,6 +258,9 @@
             document.getElementById('login-screen').style.display='none';
             updateUI();
             fetchRates();
+        } else if(document.getElementById('pin-input').value.length >= 4) {
+            alert("קוד שגוי");
+            document.getElementById('pin-input').value = "";
         }
     }
 
@@ -299,90 +304,56 @@
         localStorage.setItem('hoursReport', JSON.stringify(db.hoursReport));
     }
 
-    function closeModal() { document.getElementById('edit-modal').style.display = 'none'; }
-
-    function openEditModal(index) {
-        const entry = db.hoursReport[index];
-        const container = document.getElementById('modal-container');
-        container.innerHTML = `
-            <h3 style="color:var(--accent); text-align:center;">עריכת משמרת</h3>
-            <input type="text" id="edit-date" value="${entry.date}">
-            <input type="text" id="edit-hours" value="${entry.hours}">
-            <input type="number" id="edit-total" value="${entry.total}">
-            <button onclick="saveReportEdit(${index})">שמור שינויים</button>
-            <button class="btn-secondary" onclick="closeModal()">ביטול</button>
-        `;
-        document.getElementById('edit-modal').style.display = 'flex';
-    }
-
-    function saveReportEdit(index) {
-        db.hoursReport[index] = {
-            date: document.getElementById('edit-date').value,
-            hours: document.getElementById('edit-hours').value,
-            total: parseFloat(document.getElementById('edit-total').value).toFixed(2)
-        };
-        closeModal();
-        renderReport();
-        updateUI();
-    }
-
-    function openWorkEditModal(index) {
-        const work = db.workPlaces[index];
-        const container = document.getElementById('modal-container');
-        container.innerHTML = `
-            <h3 style="color:var(--accent); text-align:center;">עריכת שכר: ${work.name}</h3>
-            <label style="font-size:12px; color:#9ca3af;">שנה סכום צבור (₪):</label>
-            <input type="number" id="edit-work-amount" value="${work.amount.toFixed(0)}">
-            <button onclick="saveWorkEdit(${index})">עדכן שכר</button>
-            <button class="btn-secondary" onclick="closeModal()">ביטול</button>
-        `;
-        document.getElementById('edit-modal').style.display = 'flex';
-    }
-
-    function saveWorkEdit(index) {
-        const newAmt = parseFloat(document.getElementById('edit-work-amount').value);
-        if(!isNaN(newAmt)) {
-            db.workPlaces[index].amount = newAmt;
-            closeModal();
-            updateUI();
-        }
-    }
-
     function renderReport() {
-        let totalHours = 0;
-        document.getElementById('report-list-ui').innerHTML = db.hoursReport.map((e, index) => {
-            totalHours += parseFloat(e.total);
-            return `<div class="list-item"><div><small>${e.date}</small><br><b>${e.hours}</b></div><span>${e.total} ש'</span><span class="edit-icon" onclick="openEditModal(${index})">✏️</span></div>`;
-        }).join('') || "אין שעות";
+        let totalH = 0;
+        let html = "";
+        let tableHtml = "";
         
-        document.getElementById('report-table-body').innerHTML = db.hoursReport.map(e => `<tr><td>${e.date}</td><td>${e.hours}</td><td>${e.total}</td></tr>`).join('');
-        document.getElementById('report-total-hours').innerText = totalHours.toFixed(2);
+        db.hoursReport.forEach((e, index) => {
+            totalH += parseFloat(e.total);
+            html += `<div class="list-item">
+                        <div><small>${e.date}</small><br><b>${e.hours}</b></div>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <span>${e.total} ש'</span>
+                            <span class="edit-icon" onclick="openEditModal(${index})">✏️</span>
+                        </div>
+                    </div>`;
+            tableHtml += `<tr><td>${e.date}</td><td>${e.hours}</td><td>${e.total}</td></tr>`;
+        });
+
+        document.getElementById('report-list-ui').innerHTML = html || "אין שעות רשומות";
+        document.getElementById('report-table-body').innerHTML = tableHtml;
+        document.getElementById('report-total-hours').innerText = totalH.toFixed(2);
     }
 
-    // פונקציית הורדת דוח מתוקנת
     function downloadReport() {
         if (db.hoursReport.length === 0) {
-            alert("אין נתונים בדוח להורדה");
+            alert("הדוח ריק");
             return;
         }
-        const element = document.getElementById('report-capture');
-        html2canvas(element).then(canvas => {
+        // הצגת האלמנט זמנית לצילום
+        const el = document.getElementById('report-capture');
+        el.style.left = "0";
+        
+        html2canvas(el).then(canvas => {
+            const base64image = canvas.toDataURL("image/png");
             const link = document.createElement('a');
-            link.download = `Report_${new Date().getMonth() + 1}.png`;
-            link.href = canvas.toDataURL();
+            link.download = `Report_${new Date().toLocaleDateString('he-IL')}.png`;
+            link.href = base64image;
             link.click();
+            el.style.left = "-9999px"; // החזרה למקום נסתר
         });
     }
 
-    // פונקציית איפוס דוח מתוקנת
     function clearReport() {
-        if(confirm("בטוח שרוצה למחוק את כל דוח השעות של החודש? זה לא ימחק את הכסף הצבור.")) {
+        if(confirm("למחוק הכל?")) {
             db.hoursReport = [];
             renderReport();
             updateUI();
         }
     }
 
+    // --- שאר הפונקציות (שכר, עריכה, המרה) ---
     function calculateWork() {
         const start = document.getElementById('work-start').value, end = document.getElementById('work-end').value, rate = parseFloat(document.getElementById('hourly-rate').value);
         if(!start || !end || !rate) return;
@@ -408,8 +379,48 @@
         updateUI();
     }
 
+    function openEditModal(index) {
+        const entry = db.hoursReport[index];
+        const container = document.getElementById('modal-container');
+        container.innerHTML = `
+            <h3>עריכה</h3>
+            <input type="text" id="edit-date" value="${entry.date}">
+            <input type="text" id="edit-hours" value="${entry.hours}">
+            <input type="number" id="edit-total" value="${entry.total}">
+            <button onclick="saveReportEdit(${index})">שמור</button>
+            <button class="btn-secondary" onclick="closeModal()">בטל</button>
+        `;
+        document.getElementById('edit-modal').style.display = 'flex';
+    }
+
+    function saveReportEdit(index) {
+        db.hoursReport[index] = {
+            date: document.getElementById('edit-date').value,
+            hours: document.getElementById('edit-hours').value,
+            total: parseFloat(document.getElementById('edit-total').value).toFixed(2)
+        };
+        closeModal(); renderReport(); updateUI();
+    }
+
+    function openWorkEditModal(index) {
+        const work = db.workPlaces[index];
+        const container = document.getElementById('modal-container');
+        container.innerHTML = `
+            <h3>עריכת שכר: ${work.name}</h3>
+            <input type="number" id="edit-work-amount" value="${work.amount.toFixed(0)}">
+            <button onclick="saveWorkEdit(${index})">עדכן</button>
+            <button class="btn-secondary" onclick="closeModal()">בטל</button>
+        `;
+        document.getElementById('edit-modal').style.display = 'flex';
+    }
+
+    function saveWorkEdit(index) {
+        db.workPlaces[index].amount = parseFloat(document.getElementById('edit-work-amount').value) || 0;
+        closeModal(); updateUI();
+    }
+
+    function closeModal() { document.getElementById('edit-modal').style.display = 'none'; }
     function updateWorkSelect() { document.getElementById('work-select-target').innerHTML = db.workPlaces.map((w,i) => `<option value="${i}">${w.name}</option>`).join(''); }
     function addTransaction() { const amt = parseFloat(document.getElementById('main-amount').value); if(!amt) return; db.total += (document.getElementById('main-type').value === 'income' ? amt : -amt); document.getElementById('main-amount').value = ''; updateUI(); }
     function lockMoney() { const r = document.getElementById('lock-reason').value, a = parseFloat(document.getElementById('lock-amount').value); if(!r || !a || a > db.total) return; db.total -= a; db.lockedItems.push({ reason: r, amount: a, id: Date.now() }); updateUI(); }
-    function unlockMoney(id) { const i = db.lockedItems.find(x => x.id === id); db.total += i.amount; db.lockedItems = db.lockedItems.filter(x => x.id !== id); updateUI(); }
-    function deleteWorkPlace(i) { if(confirm("למחוק?")) { db.workPlaces.splice(i, 1); updateUI(); }
+    function unlockMoney(i
