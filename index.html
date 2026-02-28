@@ -416,24 +416,4 @@
     }
 
     function addTransaction() {
-        const amt = parseFloat(document.getElementById('main-amount').value);
-        if(!amt) return;
-        db.total += (document.getElementById('main-type').value === 'income' ? amt : -amt);
-        document.getElementById('main-amount').value = '';
-        updateUI();
-    }
-
-    function addNewWorkPlace() {
-        const name = prompt("שם מקום העבודה:");
-        if(name) { db.workPlaces.push({name, amount: 0}); updateUI(); }
-    }
-
-    // פונקציות מחשבון
-    let calcVal = "";
-    function calcInput(v) { calcVal += v; document.getElementById('calc-display').innerText = calcVal; }
-    function calcClear() { calcVal = ""; document.getElementById('calc-display').innerText = "0"; }
-    function calcBackspace() { calcVal = calcVal.slice(0,-1); document.getElementById('calc-display').innerText = calcVal || "0"; }
-    function calcEqual() { try { calcVal = eval(calcVal).toString(); document.getElementById('calc-display').innerText = calcVal; } catch(e) { calcClear(); } }
-</script>
-</body>
-</html>
+        const amt = parse
