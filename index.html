@@ -387,4 +387,7 @@
     function calcInput(v) { calcVal += v; document.getElementById('calc-display').innerText = calcVal; }
     function calcClear() { calcVal = ""; document.getElementById('calc-display').innerText = "0"; }
     function calcBackspace() { calcVal = calcVal.slice(0, -1); document.getElementById('calc-display').innerText = calcVal || "0"; }
-    function calcEqual() 
+    function calcEqual() { try { calcVal = eval(calcVal).toString(); document.getElementById('calc-display').innerText = calcVal; } catch(e) { calcClear(); } }
+</script>
+</body>
+</html>
